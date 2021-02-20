@@ -6,13 +6,6 @@
 
 #define DEFAULT_PERMS 0644
 
-static void
-clean(char *s, size_t l)
-{
-  while(l-- > 0)
-    *(s+l) = '\0';
-}
-
 extern struct emitter
 emitter_init(const char *path)
 {

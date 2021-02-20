@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS 	= -Wall -pedantic -O2 -g
+CFLAGS 	= -Wall -pedantic -O2 -g #-DDEBUG
 
 all: build build_test
 

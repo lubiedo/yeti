@@ -2,23 +2,32 @@
 
 #define MAX_BUFF  256
 #define MAIN_INIT "#include <stdio.h>\n" \
+  "#include <string.h>\n" \
   "int main(){\n" \
   "char mem[30000];\n" \
-  "char *ptr = mem;\n"
+  "char *ptr = mem;\n" \
+  "memset(mem, 0, 30000);\n" /* clean mem */
 #define MAIN_FIN  "return 0;\n" \
   "}\n"
+
+static void __attribute__((unused))
+clean(char *s, size_t l)
+{
+  while(l-- > 0)
+    *(s+l) = '\0';
+}
 
 static void __attribute__((unused))
 _abort(const char *err, const int pos)
 {
   if (err != NULL) {
-    if (pos)
+    if (pos > -1)
       fprintf(stderr, "error: %s (at pos: %d)\n", err, pos);
     else
       fprintf(stderr, "error: %s\n", err);
   }
 
-  exit(1);
+  exit(EXIT_FAILURE);
 }
 
 /* testing
@@ -66,11 +75,27 @@ extern struct emitter emitter_init(const char *path);
 extern        int     emitter_fin(struct emitter *e);
 extern        ssize_t emitter_out(struct emitter *e);
 
+/* interpreter.c */
+#define MEMSIZE  30000
+struct interpreter {
+  char *ptr;
+  char mem[MEMSIZE];
+};
+extern struct interpreter interpreter_init(const int memlen);
+extern void interpreter_right(struct interpreter *i);
+extern void interpreter_left(struct interpreter *i);
+extern void interpreter_inc(struct interpreter *i);
+extern void interpreter_dec(struct interpreter *i);
+extern void interpreter_in(struct interpreter *i);
+extern void interpreter_out(struct interpreter *i);
+
 /* parser.c */
 struct parser {
-  struct lexer    lexer;
-  struct emitter  emitter;
+  struct lexer        lexer;
+  struct emitter      emitter;
+  struct interpreter  interpreter;
+  int interpreting;
 };
-extern struct parser  parser_init(const char *s, const char *o);
+extern struct parser  parser_init(const char *s, const char *o, const int vm);
 extern        int     parser_fin(struct parser *p);
 extern        void    parser_program(struct parser *p);

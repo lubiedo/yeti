@@ -8,4 +8,4 @@ build: $(TESTS)
 
 .PHONY: clean
 clean:
-	rm -rf $(TESTS) *.dSYM helloworld.c cat.c
+	rm -rf $(TESTS) *.dSYM helloworld.c cat.c a{.c,.out,}

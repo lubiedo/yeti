@@ -10,7 +10,9 @@
 static char tmpdefault[17] = "/tmp/yetiXXXXXX";
 
 static int verbose    = 0;
-static int only_emit = 0;
+static int from_stdin = 0;
+static int only_emit  = 0;
+static int only_interpret = 0;
 
 static void
 help()
@@ -63,8 +65,10 @@ main(int argc, char **argv)
   int inputfd;
   int opt;
 
-  while ((opt = getopt(argc, argv, "hevo:")) != -1) {
+  while ((opt = getopt(argc, argv, "hievo:")) != -1) {
     switch (opt) {
+      case 'i':
+        only_interpret++; break;
       case 'e':
         only_emit++; break;
       case 'v':
@@ -79,19 +83,25 @@ main(int argc, char **argv)
   argv += optind;
 
   if (argc == 1) {
-    if (*(*argv) == '-' && *(*argv + 1) == 0)
+    if (*(*argv) == '-' && *(*argv + 1) == 0) {
       /* if - is file then read from stdin */
-      input = "/dev/stdin";
-    else
+      from_stdin++;
+    } else {
       input = *argv;
+    }
   } else {
     fprintf(stderr, "error: missing FILE input\n");
     help();
   }
 
+  if (only_emit && only_interpret)
+    _abort("interpret and emit cannot be used at the same time", -1);
+
   if (output == NULL) {
     if (only_emit) {
       output = "a.c";
+    } else if (only_interpret) {
+      output = "-";
     } else {
       output = "a.out";
     }
@@ -101,13 +111,26 @@ main(int argc, char **argv)
     printf("info: input file '%s', output file '%s'\n", input, output);
 
   /* consume input file code */
-  if ((inputfd = open(input, O_RDONLY)) == -1 || stat(input, &inputstat) == -1)
-  {
-    perror("error");
-    _abort(NULL, -1);
+  size_t pgsize = getpagesize();
+  if (!from_stdin) {
+    if ((inputfd = open(input, O_RDONLY)) == -1 || stat(input, &inputstat) == -1)
+    {
+      perror("error");
+      _abort(NULL, -1);
+    }
+    code = mmap(0, inputstat.st_size, PROT_READ, MAP_FILE|MAP_SHARED,
+      inputfd, 0);
+  } else {
+    // FIXME: child needs stdin for getchar()
+    code = mmap(0, pgsize, PROT_READ|PROT_WRITE,
+      MAP_ANONYMOUS|MAP_SHARED, -1, 0);
+    read(STDIN_FILENO, code, pgsize);
   }
-  code = mmap(0, inputstat.st_size, PROT_READ, MAP_FILE|MAP_SHARED, inputfd, 0);
-  filedir   = dirname(input);
+
+  if (from_stdin)
+    filedir = ".";
+  else
+    filedir = dirname(input);
 
   /* child process will compile or emit the C code */
   pid_t child = fork();
@@ -116,25 +139,38 @@ main(int argc, char **argv)
       printf("info: changing directory to '%s'.\n", filedir);
     chdir(filedir);
 
-    if (only_emit) {
+    if (only_interpret) {
+      /* interpret BF code */
+      if (verbose)
+        printf("info: interpret bf code.\n");
+      parse = parser_init(code, NULL, 1);
+    } else if (only_emit) {
       /* only emit the C code */
-      parse = parser_init(code, output);
+      if (verbose)
+        printf("info: emit C code.\n");
+      parse = parser_init(code, output, 0);
     } else {
       /* get temp file for generated C code */
+      if (verbose)
+        printf("info: compile code.\n");
       tmp = mktemp(tmpdefault);
       strcat(tmp, ".c");
       if (verbose)
         printf("info: created temp file '%s'\n", tmp);
 
-      parse = parser_init(code, tmp);
+      parse = parser_init(code, tmp, 0);
     }
 
     parser_program(&parse);
     parser_fin(&parse);
 
-    if (verbose)
-      printf("info: compiling input file\n");
-    compile(tmp, output);
+    if (!only_emit && !only_interpret) {
+      if (verbose)
+        printf("info: compiling input file\n");
+      compile(tmp, output);
+    }
+
+    exit(EXIT_SUCCESS);
   }
 
   /* check if child failed and wait for it to be done */
@@ -147,7 +183,7 @@ main(int argc, char **argv)
     }
 
     if (WIFEXITED(childstat) ? WEXITSTATUS(childstat) : EXIT_FAILURE) {
-      fprintf(stderr, "error: compiler had an error\n");
+      fprintf(stderr, "error: parser had an error\n");
     }
   }
 
