@@ -8,7 +8,8 @@ Just type `make`. That's it.
 
 ### TODO
 - [ ] Ditch `gcc` and make yeti compile the final binary.
-- [X] Include an interpreter skip compilation process.
+- [X] Include an interpreter skip emitting process.
+- [ ] More exhaustive work on the interpreter (eg. test against more complex code).
 
 ### TOFIX
-- [ ] Child can't read from STDIN when interpreted.
+- [X] Child can't read from STDIN when interpreted.

@@ -133,8 +133,22 @@ main(int argc, char **argv)
     filedir = dirname(input);
 
   /* child process will compile or emit the C code */
-  pid_t child = fork();
+  int pipes[2];
+  pid_t child;
+
+  pipe(pipes);
+
+  /* setup stdin/stdout for getchar() */
+  close(pipes[0]);
+  close(pipes[1]);
+  dup2(STDOUT_FILENO, pipes[0]);
+  dup2(STDIN_FILENO, pipes[1]);
+
+  child = fork();
   if (child == 0) {
+    dup2(pipes[0], STDIN_FILENO);
+    dup2(pipes[1], STDOUT_FILENO);
+
     if (verbose)
       printf("info: changing directory to '%s'.\n", filedir);
     chdir(filedir);
