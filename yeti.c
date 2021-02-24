@@ -101,7 +101,6 @@ main(int argc, char **argv)
     code = mmap(0, inputstat.st_size, PROT_READ, MAP_FILE|MAP_SHARED,
       inputfd, 0);
   } else {
-    // FIXME: child needs stdin for getchar()
     code = mmap(0, pgsize, PROT_READ|PROT_WRITE,
       MAP_ANONYMOUS|MAP_SHARED, -1, 0);
     read(STDIN_FILENO, code, pgsize);
