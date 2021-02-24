@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <unistd.h>
 
 #define MAX_BUFF  256
 #define MAIN_INIT "#include <stdio.h>\n" \
@@ -10,11 +11,64 @@
 #define MAIN_FIN  "return 0;\n" \
   "}\n"
 
+/* string.h replacements */
 static void __attribute__((unused))
 clean(char *s, size_t l)
 {
   while(l-- > 0)
     *(s+l) = '\0';
+}
+
+static char * __attribute__((unused))
+scpy(char *d, char *s)
+{
+  char *p = d;
+
+  if (*s == '\0')
+    return NULL;
+  while(*s != '\0')
+    *p++ = *s++;
+  return d;
+}
+
+static char * __attribute__((unused))
+scat(char *d, char *s)
+{
+  char *p = d;
+
+  if (*s == '\0')
+    return NULL;
+  while (*++p != '\0') ;
+  while(*s != '\0')
+    *p++ = *s++;
+  return d;
+}
+
+static size_t __attribute__((unused))
+slen(char *s)
+{
+  size_t l = 0;
+
+  if (*s == '\0')
+    return l;
+  while(*s++ != '\0')
+    l++;
+  return l;
+}
+
+static int __attribute__((unused))
+gchar()
+{
+  int c;
+  read(0, (void *)&c, 1);
+  return c;
+}
+
+static int __attribute__((unused))
+pchar(int c)
+{
+  write(1, (void *)&c, 1);
+  return c;
 }
 
 static void __attribute__((unused))
@@ -82,12 +136,12 @@ struct interpreter {
   char mem[MEMSIZE];
 };
 extern struct interpreter interpreter_init(const int memlen);
-extern void interpreter_right(struct interpreter *i);
-extern void interpreter_left(struct interpreter *i);
-extern void interpreter_inc(struct interpreter *i);
-extern void interpreter_dec(struct interpreter *i);
-extern void interpreter_in(struct interpreter *i);
-extern void interpreter_out(struct interpreter *i);
+extern        void        interpreter_right(struct interpreter *i);
+extern        void        interpreter_left(struct interpreter *i);
+extern        void        interpreter_inc(struct interpreter *i);
+extern        void        interpreter_dec(struct interpreter *i);
+extern        void        interpreter_in(struct interpreter *i);
+extern        void        interpreter_out(struct interpreter *i);
 
 /* parser.c */
 struct parser {

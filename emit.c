@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <unistd.h>
-#include <string.h>
 #include <fcntl.h>
 #include "common.h"
 
@@ -24,7 +23,7 @@ emitter_init(const char *path)
 extern ssize_t
 emitter_out(struct emitter *e)
 {
-  size_t  len   = strlen(e->code);
+  size_t  len   = slen(e->code);
   ssize_t wrote = write(e->fd, e->code, len);
 
   clean(e->code, len);

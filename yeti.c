@@ -1,7 +1,5 @@
 #include <stdio.h>
 #include <fcntl.h>
-#include <unistd.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
@@ -22,27 +20,9 @@ help()
     "\t-\tRead from stdin.\n"
     "\t-o\tOutput file path.\n" \
     "\t-e\tOnly emit C code.\n" \
+    "\t-i\tInterpret bf code.\n" \
     "\t-v\tVerbose output.\n");
   exit(1);
-}
-
-static char *
-dirname(const char *path)
-{
-  char *p = strrchr(path, '/');
-
-  if (p == NULL) {
-    p = ".";
-    return (p);
-  }
-
-  int dirlen = p - path;
-
-  p = (char *) malloc(dirlen + 1);
-  memcpy(p, path, dirlen);
-  *(p + dirlen + 1) = '\0';
-
-  return (p);
 }
 
 static int
@@ -61,7 +41,7 @@ main(int argc, char **argv)
   struct parser parse;
   struct stat inputstat;
   char *tmp = NULL, *output = NULL, *input;
-  char *code, *filedir;
+  char *code;
   int inputfd;
   int opt;
 
@@ -127,11 +107,6 @@ main(int argc, char **argv)
     read(STDIN_FILENO, code, pgsize);
   }
 
-  if (from_stdin)
-    filedir = ".";
-  else
-    filedir = dirname(input);
-
   /* child process will compile or emit the C code */
   int pipes[2];
   pid_t child;
@@ -149,10 +124,6 @@ main(int argc, char **argv)
     dup2(pipes[0], STDIN_FILENO);
     dup2(pipes[1], STDOUT_FILENO);
 
-    if (verbose)
-      printf("info: changing directory to '%s'.\n", filedir);
-    chdir(filedir);
-
     if (only_interpret) {
       /* interpret BF code */
       if (verbose)
@@ -168,7 +139,8 @@ main(int argc, char **argv)
       if (verbose)
         printf("info: compile code.\n");
       tmp = mktemp(tmpdefault);
-      strcat(tmp, ".c");
+      scat(tmp, ".c");
+
       if (verbose)
         printf("info: created temp file '%s'\n", tmp);
 

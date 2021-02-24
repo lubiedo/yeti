@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <string.h>
 #include "common.h"
 
 /* follow loop depth and loop instances */
@@ -100,27 +99,27 @@ statement(struct parser *p)
   switch (current_token) {
     case TOKEN_RIGHT:
       if (p->interpreting) interpreter_right(&p->interpreter);
-        else strcpy(p->emitter.code, "ptr++;\n"); break;
+        else scpy(p->emitter.code, "ptr++;\n"); break;
     case TOKEN_LEFT:
       if (p->interpreting) interpreter_left(&p->interpreter);
-        else strcpy(p->emitter.code, "ptr--;\n"); break;
+        else scpy(p->emitter.code, "ptr--;\n"); break;
     case TOKEN_INC:
       if (p->interpreting) interpreter_inc(&p->interpreter);
-        else strcpy(p->emitter.code, "(*ptr)++;\n"); break;
+        else scpy(p->emitter.code, "(*ptr)++;\n"); break;
     case TOKEN_DEC:
       if (p->interpreting) interpreter_dec(&p->interpreter);
-        else strcpy(p->emitter.code, "(*ptr)--;\n"); break;
+        else scpy(p->emitter.code, "(*ptr)--;\n"); break;
     case TOKEN_IN:
       if (p->interpreting) interpreter_in(&p->interpreter);
-        else strcpy(p->emitter.code, "*ptr = getchar();\n"); break;
+        else scpy(p->emitter.code, "*ptr = getchar();\n"); break;
     case TOKEN_OUT:
       if (p->interpreting) interpreter_out(&p->interpreter);
-        else strcpy(p->emitter.code, "putchar(*ptr);\n"); break;
+        else scpy(p->emitter.code, "putchar(*ptr);\n"); break;
     case TOKEN_OLOOP:
       loop_depth++;
 
       if (!p->interpreting) {
-        strcpy(p->emitter.code, "while (*ptr) {\n");
+        scpy(p->emitter.code, "while (*ptr) {\n");
         emitter_out(&p->emitter);
       } else {
         /* save open loop position for future use */
@@ -179,12 +178,12 @@ parser_program(struct parser *p)
   printf("PROGRAM\n");
 #endif
   if (!p->interpreting) {
-    strcpy(p->emitter.code, MAIN_INIT);
+    scpy(p->emitter.code, MAIN_INIT);
     emitter_out(&p->emitter);
   }
   while (statement(p) != TOKEN_EOF) { ; }
   if (!p->interpreting) {
-    strcpy(p->emitter.code, MAIN_FIN);
+    scpy(p->emitter.code, MAIN_FIN);
     emitter_out(&p->emitter);
   }
 }
