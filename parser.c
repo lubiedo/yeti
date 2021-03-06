@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include "common.h"
 
+static struct dbg_cmd debug_cmd;
+int debug_brkps[MAX_BUFF] = {-1};
+
 /* follow loop depth and loop instances */
 static int loop_depth = 0;
 static struct loop {
@@ -62,7 +65,7 @@ print_loops()
 #endif
 
 extern struct parser
-parser_init(const char *s, const char *o, const int vm)
+parser_init(const char *s, const char *o, const int vm, const int dbg)
 {
   struct parser parser;
   parser.lexer    = lexer_init(s);
@@ -75,12 +78,17 @@ parser_init(const char *s, const char *o, const int vm)
     parser.interpreter = interpreter_init(MEMSIZE);
   }
 
+  /* should we enter into debugging mode */
+  parser.debugging = dbg;
+
   return parser;
 }
 
 extern int
 parser_fin(struct parser *p)
 {
+  if (p->interpreting)
+    interpreter_fin(&p->interpreter);
   return p->interpreting ? EXIT_SUCCESS : emitter_fin(&p->emitter);
 }
 
@@ -94,6 +102,36 @@ statement(struct parser *p)
   printf("STATEMENT: ");
   lexer_print(current_token); printf(" (at pos: %d)\n", p->lexer.pos);
 #endif
+
+  /* if debugger mode is ON then ask for commands before anything
+     also check if we are in a breakpoint pos */
+  if (p->debugging || debugger_isbrk(pos, debug_brkps)) {
+    p->debugging = 1; // in case of brkp
+    for (;;) {
+      static char *debug_line;
+      size_t debug_linecap = 0;
+
+      printf("yeti> "); // simple prompt
+      getline(&debug_line, &debug_linecap, stdin);
+      debug_cmd = debugger_parser(p, debug_line, (int **)debug_brkps);
+
+      if (debug_cmd.id == -1) /* error or couldn't parse command */
+        continue;
+
+      /* immediately check if the command is to quit */
+      if (debug_cmd.id == DBG_QUIT) {
+        printf("quitting...\n");
+        exit(EXIT_SUCCESS);
+      }
+      if (debug_cmd.id == DBG_CONT) {
+        printf("continuing...\n");
+        p->debugging = 0;
+        break; /* free from loop and continue */
+      }
+      if (debug_cmd.id == DBG_STEP)
+        break;
+    }
+  }
 
   /* not much as statements are simple in BF */
   switch (current_token) {
@@ -181,6 +219,10 @@ parser_program(struct parser *p)
     scpy(p->emitter.code, MAIN_INIT);
     emitter_out(&p->emitter);
   }
+
+  if (p->debugging)
+    printf("info: starting debugger, use `?` for help.\n");
+
   while (statement(p) != TOKEN_EOF) { ; }
   if (!p->interpreting) {
     scpy(p->emitter.code, MAIN_FIN);

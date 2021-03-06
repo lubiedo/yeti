@@ -133,9 +133,10 @@ extern        ssize_t emitter_out(struct emitter *e);
 #define MEMSIZE  30000
 struct interpreter {
   char *ptr;
-  char mem[MEMSIZE];
+  char *mem;
 };
 extern struct interpreter interpreter_init(const int memlen);
+extern        void        interpreter_fin(struct interpreter *i);
 extern        void        interpreter_right(struct interpreter *i);
 extern        void        interpreter_left(struct interpreter *i);
 extern        void        interpreter_inc(struct interpreter *i);
@@ -149,7 +150,35 @@ struct parser {
   struct emitter      emitter;
   struct interpreter  interpreter;
   int interpreting;
+  int debugging;
 };
-extern struct parser  parser_init(const char *s, const char *o, const int vm);
+extern struct parser  parser_init(const char *s, const char *o, const int vm,
+                                  const int bdg);
 extern        int     parser_fin(struct parser *p);
 extern        void    parser_program(struct parser *p);
+
+/* debugger.c */
+#define PRNT_NVALUES  16*2 // nitems * lines
+enum {
+#define CMD_QUIT    'q'
+  DBG_QUIT,
+#define CMD_INFO    'i'
+  DBG_INFO,
+#define CMD_PRNT    'p'
+  DBG_PRNT,
+#define CMD_CONT    'c'
+  DBG_CONT,
+#define CMD_STEP    's'
+  DBG_STEP,
+#define CMD_BRKP    'b'
+  DBG_BRKP,
+#define CMD_HELP    '?'
+  DBG_HELP,
+};
+struct dbg_cmd {
+  int   id;
+  char  cmd;
+  char  *help;
+};
+extern  struct  dbg_cmd debugger_parser(struct parser *p, char *c, int *b[]);
+extern          int     debugger_isbrk(int p, int brkps[]);

@@ -5,12 +5,22 @@
 #include <sys/wait.h>
 #include "common.h"
 
+#define ONLY(A) if (action != A) \
+  _abort("multiple actions cannot be used at the same time (-e, -d, -i)", -1);
+
+/* available actions */
+enum {
+  COMPILE = 1,
+  EMIT,
+  INTERPRET,
+  DEBUG
+};
+
 static char tmpdefault[17] = "/tmp/yetiXXXXXX";
 
 static int verbose    = 0;
 static int from_stdin = 0;
-static int only_emit  = 0;
-static int only_interpret = 0;
+static int action     = COMPILE;
 
 static void
 help()
@@ -19,6 +29,7 @@ help()
     "OPTIONS:\n" \
     "\t-\tRead from stdin.\n"
     "\t-o\tOutput file path.\n" \
+    "\t-d\tDebug mode.\n" \
     "\t-e\tOnly emit C code.\n" \
     "\t-i\tInterpret bf code.\n" \
     "\t-v\tVerbose output.\n");
@@ -28,7 +39,7 @@ help()
 static int
 compile(char *s, char *o)
 {
-  char  *cpath  = "/usr/bin/gcc";
+  char *cpath   = "/usr/bin/gcc";
   char *cargs[] = {
     cpath, s, "-O3", "-Wall", "-std=c99", "-o", o, NULL
   };
@@ -45,12 +56,17 @@ main(int argc, char **argv)
   int inputfd;
   int opt;
 
-  while ((opt = getopt(argc, argv, "hievo:")) != -1) {
+  while ((opt = getopt(argc, argv, "hidevo:")) != -1) {
     switch (opt) {
       case 'i':
-        only_interpret++; break;
+        ONLY(COMPILE)
+        action = INTERPRET; break;
+      case 'd':
+        ONLY(COMPILE)
+        action = DEBUG; break;
       case 'e':
-        only_emit++; break;
+        ONLY(COMPILE)
+        action = EMIT; break;
       case 'v':
         verbose++; break;
       case 'o':
@@ -74,13 +90,10 @@ main(int argc, char **argv)
     help();
   }
 
-  if (only_emit && only_interpret)
-    _abort("interpret and emit cannot be used at the same time", -1);
-
   if (output == NULL) {
-    if (only_emit) {
+    if (action == EMIT) {
       output = "a.c";
-    } else if (only_interpret) {
+    } else if (action == INTERPRET || action == DEBUG) {
       output = "-";
     } else {
       output = "a.out";
@@ -123,16 +136,18 @@ main(int argc, char **argv)
     dup2(pipes[0], STDIN_FILENO);
     dup2(pipes[1], STDOUT_FILENO);
 
-    if (only_interpret) {
+    if (action == INTERPRET || action == DEBUG) {
       /* interpret BF code */
       if (verbose)
-        printf("info: interpret bf code.\n");
-      parse = parser_init(code, NULL, 1);
-    } else if (only_emit) {
+        printf("info: %s bf code.\n",
+          (action == INTERPRET ? "interpret" : "debug"));
+
+      parse = parser_init(code, NULL, 1, action - INTERPRET);
+    } else if (action == EMIT) {
       /* only emit the C code */
       if (verbose)
         printf("info: emit C code.\n");
-      parse = parser_init(code, output, 0);
+      parse = parser_init(code, output, 0, 0);
     } else {
       /* get temp file for generated C code */
       if (verbose)
@@ -143,13 +158,13 @@ main(int argc, char **argv)
       if (verbose)
         printf("info: created temp file '%s'\n", tmp);
 
-      parse = parser_init(code, tmp, 0);
+      parse = parser_init(code, tmp, 0, 0);
     }
 
     parser_program(&parse);
     parser_fin(&parse);
 
-    if (!only_emit && !only_interpret) {
+    if (action == COMPILE) {
       if (verbose)
         printf("info: compiling input file\n");
       compile(tmp, output);

@@ -5,10 +5,18 @@ extern struct interpreter
 interpreter_init(const int memlen)
 {
   struct interpreter interpret;
+
+  interpret.mem = (char *)malloc(MEMSIZE);
   clean(interpret.mem, memlen);
   interpret.ptr = interpret.mem;
 
   return interpret;
+}
+extern void
+interpreter_fin(struct interpreter *i)
+{
+  if (i->mem != NULL)
+    free(i->mem);
 }
 
 extern void interpreter_right(struct interpreter *i){ i->ptr++; }
