@@ -2,7 +2,7 @@
 #include "common.h"
 
 static struct dbg_cmd debug_cmd;
-int debug_brkps[MAX_BUFF] = {-1};
+static struct dbg_session debug_sess = {{-1}, 0};
 
 /* follow loop depth and loop instances */
 static int loop_depth = 0;
@@ -105,15 +105,19 @@ statement(struct parser *p)
 
   /* if debugger mode is ON then ask for commands before anything
      also check if we are in a breakpoint pos */
-  if (p->debugging || debugger_isbrk(pos, debug_brkps)) {
+  if (p->debugging || debugger_isbrk(pos, debug_sess.brkps)) {
     p->debugging = 1; // in case of brkp
     for (;;) {
       static char *debug_line;
       size_t debug_linecap = 0;
 
+      /* are we doing multiple steps? */
+      if (debug_sess.steps > 0 && --debug_sess.steps > 0)
+        break;
+
       printf("yeti> "); // simple prompt
       getline(&debug_line, &debug_linecap, stdin);
-      debug_cmd = debugger_parser(p, debug_line, (int **)debug_brkps);
+      debug_cmd = debugger_parser(p, debug_line, &debug_sess);
 
       if (debug_cmd.id == -1) /* error or couldn't parse command */
         continue;

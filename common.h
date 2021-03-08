@@ -180,5 +180,10 @@ struct dbg_cmd {
   char  cmd;
   char  *help;
 };
-extern  struct  dbg_cmd debugger_parser(struct parser *p, char *c, int *b[]);
+struct dbg_session {
+  int brkps[MAX_BUFF];
+  int steps;
+};
+extern  struct  dbg_cmd debugger_parser(struct parser *p, char *c,
+                                        struct dbg_session *d);
 extern          int     debugger_isbrk(int p, int brkps[]);

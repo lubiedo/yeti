@@ -11,7 +11,7 @@ static struct dbg_cmd cmds[] = {
   {DBG_PRNT, CMD_PRNT, "print memory region at pointer."\
     " `p (off)` for mem at offset."},
   {DBG_CONT, CMD_CONT, "continue until end of program."},
-  {DBG_STEP, CMD_STEP, "perform a single step."},
+  {DBG_STEP, CMD_STEP, "perform a single step or `s (steps)` for N steps."},
   {DBG_BRKP, CMD_BRKP, "set breakpoint at curr position or `b (pos)`."},
   {DBG_HELP, CMD_HELP, "show help."},
   {-1, 0, NULL},
@@ -128,8 +128,30 @@ debugger_prnt(char *params)
   return 1;
 }
 
+int
+debugger_step(char *params, int *out)
+{
+  unsigned int steps = -1;
+  int retscan;
+
+  if (*params != '\n') {
+    retscan = sscanf(params, "%d\n", &steps);
+    if (!retscan || steps == -1) {
+      printf("s: invalid amount of steps\n");
+      return steps;
+    }
+  } else {
+    steps = 1;
+  }
+  if (steps > 1)
+    printf("stepping %d times...\n", steps);
+  *out = steps;
+
+  return 1;
+}
+
 extern struct dbg_cmd
-debugger_parser(struct parser *p, char *c, int *b[])
+debugger_parser(struct parser *p, char *c, struct dbg_session *d)
 {
   struct dbg_cmd ret = {-1, 0, NULL};
   char *ptr, cmd;
@@ -163,7 +185,7 @@ debugger_parser(struct parser *p, char *c, int *b[])
 
   /* commands with no params should have no extra chars except for spaces */
   switch (cmdid) {
-    case DBG_QUIT: case DBG_INFO: case DBG_CONT: case DBG_STEP: case DBG_HELP:
+    case DBG_QUIT: case DBG_INFO: case DBG_CONT: case DBG_HELP:
       if (*ptr != '\n') {
         printf("error: invalid usage of command `%c`\n", cmd);
         return ret;
@@ -174,14 +196,18 @@ debugger_parser(struct parser *p, char *c, int *b[])
   /* now process and carry away all commands */
   switch (cmdid) {
     case DBG_INFO:
-      debugger_info((int*)b);
+      debugger_info(d->brkps);
       break;
     case DBG_PRNT:
       if (debugger_prnt(ptr) == -1)
         return ret;
       break;
+    case DBG_STEP:
+      if (debugger_step(ptr, &d->steps) == -1)
+        return ret;
+      break;
     case DBG_BRKP:
-      if (debugger_brkp(ptr, (int*)b) == -1)
+      if (debugger_brkp(ptr, d->brkps) == -1)
         return ret;
       break;
     case DBG_HELP:
